@@ -1,8 +1,9 @@
+wd=working_directory
 library(rtape)
 library(parsedate)
 library(data.table)
-setwd("C:/Users/spicy/Desktop/Magisterka/")
-filenames <- list.files("airly", full.names=TRUE)
+setwd(wd)
+filenames <- list.files(pattern="airly", full.names=FALSE)
 
 nullGoesNA<-function(x) if(is.null(x)) NA else x
 
