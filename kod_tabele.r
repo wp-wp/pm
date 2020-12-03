@@ -34,7 +34,26 @@ flattenAirlyRecord<-function(x){
     pm10=getMeasurements(x$ans$history,'pm10')
   ))
 }
+            ##rstudio##
+loadAndRead<-function(file){
+  rtapeLapply(file,flattenAirlyRecord) -> x
+  sapply(x,function(x) is.null(x)||inherits(x,"try-error"))->bad
+  rbindlist(x[!bad])->x 
+  na.omit(x)->x
+  unique(x)->x
+  return(x)
+}
 
+            ##epyc##
+loadAndReadParallel<-function(file){
+  parLapply(rtapeAsList(file),flattenAirlyRecord,mc.cores=12)->x
+  slapply(x,function(x) is.null(x)||inherits(x,"try-error"))->bad
+  rbindlist(x[!bad])->x
+  na.omit(x)->x
+  unique(x)->x
+  return(x)
+}
+           
 ##WCZYTYWANIE##           
 
 rtapeLapply(filenames[1],flattenAirlyRecord)->x  
