@@ -1,10 +1,11 @@
-wd=working_directory
+##BIBLIOTEKI I WORKING DIRECTORY##
 library(rtape)
 library(parsedate)
 library(data.table)
+wd <- "zmienna okreslajaca wd"
 setwd(wd)
-filenames <- list.files(pattern="airly", full.names=FALSE)
 
+##FUNKCJE##
 nullGoesNA<-function(x) if(is.null(x)) NA else x
 
 getValue<-function(history,key){
@@ -34,6 +35,7 @@ flattenAirlyRecord<-function(x){
   ))
 }
 
+##WCZYTYWANIE##           
 
 rtapeLapply(filenames[1],flattenAirlyRecord)->x  
 
