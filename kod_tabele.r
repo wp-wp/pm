@@ -55,23 +55,11 @@ loadAndReadParallel<-function(file){
 }
            
 ##WCZYTYWANIE##           
-
-rtapeLapply(filenames[1],flattenAirlyRecord)->x  
-
-#epyc
-library(parallel)
-mclapply(rtapeAsList(filenames[1]),flattenAirlyRecord,mc.cores=96)->x
-
-#wyłapuje puste elementy (NULL)
-sapply(x,function(x) is.null(x)||inherits(x,"try-error"))->bad
-       
-library(data.table)
-#składa całość po wierszach
-rbindlist(x[!bad])->x
-       
-#pomija wiersze z minimum 1 NA
-na.omit(x)->x
-       
-#usuwa zduplikowane wiersze
-unique(x)->x
+for(input_fn in list.files(pattern='tape$',full=TRUE)){
+  output_fn<-sprintf("%s.flattened.RDS",input_fn)
+  if(!file.exists(output_fn)){
+    loadAndReadParallel(input_fn)->output
+    saveRDS(output,file=output_fn)
+  }
+}
 
