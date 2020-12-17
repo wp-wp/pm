@@ -46,7 +46,7 @@ loadAndRead<-function(file){
 
             ##epyc##
 loadAndReadParallel<-function(file){
-  parLapply(rtapeAsList(file),flattenAirlyRecord,mc.cores=12)->x
+  parLapply(rtapeAsList(file),flattenAirlyRecord,mc.cores=48)->x
   slapply(x,function(x) is.null(x)||inherits(x,"try-error"))->bad
   rbindlist(x[!bad])->x
   na.omit(x)->x
