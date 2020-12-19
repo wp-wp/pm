@@ -68,7 +68,7 @@ ptm <- proc.time()
 for(input_fn in list.files(pattern='tape$',full=TRUE)){
   output_fn<-sprintf("%s.flattened.RDS",input_fn)
   if(!file.exists(output_fn)){
-    saveRDS(loadAndRead(input_fn),file=output_fn)         ##<--- bez pliku output##
+    saveRDS(loadAndReadParallel(input_fn),file=output_fn)         ##<--- bez pliku output##
   }
 }
 proc.time()-ptm
@@ -78,11 +78,11 @@ proc.time()-ptm
 loop<- function(x){                                       
   output_fn<-sprintf("%s.flattened.RDS",x)
   if(!file.exists(output_fn)){                            ##<--- zastanawialam sie czy nie zrobic funkcji w tym rodzaju i nie uzyc lapply, ale nie jestem pewna czy lapply nie 
-    saveRDS(loadAndRead(input_fn),file=output_fn)         ##     zepsuloby plikow wynikowych##
+    saveRDS(loadAndReadParallel(input_fn),file=output_fn)         ##     zepsuloby plikow wynikowych##
   }
 }
 
-##lub##          
+##lub Windows##          
 oneFileLoop <-  function(x) {
   output<- sprintf("%s.21flattened.RDS",x)
   if(!file.exists(output_fn)){
