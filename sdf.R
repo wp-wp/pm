@@ -33,5 +33,5 @@ dToStreet<- function(points,lines){
   }
 
 
-
+save(raster, file"r.RData")
 
