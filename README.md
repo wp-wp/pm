@@ -12,4 +12,4 @@ tertiary
 tertiary_link
 
 ####
-
+! pliki *_street.shp zostały skompresowane w pliki .zip 
