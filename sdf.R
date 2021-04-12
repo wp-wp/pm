@@ -2,7 +2,7 @@ library(raster)
 library(rgdal)
 library(rgeos)
 
-city_list <- list.dirs(recursive = F) ## folder=city
+city_list <- list.dirs(recursive = F, full.names = F) ## folder=city
 
 sdf<- function(city){
   points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))
@@ -22,3 +22,20 @@ for(city in city_list){
     sdf(city)
   }
 }
+
+## sdf dla 1 ulicy (primary) test
+## wektor z nazwami ulic?
+
+sdf_type<- function(city){
+  points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))
+  lines <- readOGR(paste0(city,"/ulice_", city,"/primary.shp"))
+  lines <- spTransform(lines, crs(points))
+  raster <- raster(resolution = 200, ext = extent(points), crs = crs(points))
+  raster_points = as(raster,"SpatialPoints")
+  distance_m <- gDistance(lines, raster_points, byid=TRUE) ##distance matrix
+  sdf<- apply(distance_m,1,min)
+  raster[] = sdf  ##or raster[]=apply(distance_m,1,min)
+  names(raster) <- 'distance'
+  writeRaster(raster, file= paste0("raster/", city,"_raster_primary.grd"))
+}
+
