@@ -39,27 +39,47 @@ fKrig <- function(city,raster){
 ########################################
 
 stacja <- readRDS(data_pmloc[2])                          ## DANE
-Z = raster(data_dist[2])                                  ## ODLEGLOSCI OD ULICY
+z = raster(data_dist[2])                                  ## ODLEGLOSCI OD ULICY
+
+stacja.loc <- data.frame(                                 ## DATAFRAME LOKALIZACJI
+  m_id=stacja$m_id,
+  lon= stacja$lon,
+  lat=stacja$lat
+) 
+
+stacja.loc <- unique(stacja.loc) 
 
 t = unique(stacja$m_t)                                    ## CZAS
-t <- sort(t, decreasing = F)  
+t <- sort(t, decreasing = F) 
+
+
+xy <- data.frame(                                    ## DATAFRAME DLA JEDNEJ GODZINY
+  m_id = unique(stacja$m_id),
+  m_t  = t[5], ## tu petla/funkcja
+  pm10 = NA,
+  pm25 = NA
+)
+xy <- merge(xy,stacja.loc,by="m_id")
+
 
 ### DLA KONKRETNEJ DATY ###
 
-XY <- stacja[stacja$m_t %in% t[5],]
-coordinates(XY) <- 5:6
-crs(XY) <- crs(Z)
+xy.fill <- stacja[stacja$m_t %in% t[5],]
 
-r <- raster(extent(Z), crs=crs(Z))
+fill.fun <- function ## uzupelnienie pm10,pm25
 
-X = cbind(XY$lon,XY$lat)                                  ## WSPOLRZEDNE STACJI
-Y10 = matrix(XY$pm10)                                     ## POZIOM PM10 (error qr.q2ty w/o matrix())
-Y25 = matrix(XY$pm25)                                     ## POZIOM PM25
+lapply(xy, fill.fun)->xy  
 
-smog10 <- Krig(X,Y10, Z=)
+
+
+x = cbind(xy$lon,xy$lat)                                  ## WSPOLRZEDNE STACJI
+y10 = matrix(xy$pm10)                                     ## POZIOM PM10 (error qr.q2ty w/o matrix())
+y25 = matrix(xy$pm25)                                     ## POZIOM PM25
+
+smog10 <- Krig(x,y10,theta = 100,m = 1) #z nrow = xy nrow ok
 smog25 <- Krig()
 
 #########################################
-
-
-
+plot(smog10)
+surface(smog10)
+plot(xy, add=T)
