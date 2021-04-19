@@ -16,19 +16,6 @@ data_pmloc <- list.files(pattern = "*_pmloc.RDS", recursive = T)                
 ###            FUNKCJE            ###
 #####################################
 
-sdf<- function(city){                                                                       ## FUNKCJA (MIASTO, ULICA)
-  points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))                               ## DO STWORZENIA .SHP ULIC (LISTA steet_level)
-  lines <- readOGR(paste0(city,"/ulice_", city,"/primary.shp"))                             ## LUB OBLICZENIE RASTROW OSOBNO
-  lines <- spTransform(lines, crs(points))
-  raster <- raster(resolution = 200, ext = extent(WAW_raster), crs = crs(points))
-  raster_points = as(raster,"SpatialPoints")
-  distance_m <- gDistance(lines, raster_points, byid=TRUE) ##distance matrix
-  sdf<- apply(distance_m,1,min)
-  raster[] = sdf  ##or raster[]=apply(distance_m,1,min)
-  names(raster) <- 'distance'
-  return(raster)
-}
-
 fKrig <- function(city,raster){
   
   
@@ -39,7 +26,9 @@ fKrig <- function(city,raster){
 ########################################
 
 stacja <- readRDS(data_pmloc[2])                          ## DANE
-z = raster(data_dist[2])                                  ## ODLEGLOSCI OD ULICY
+z = readRDS("WAW/dist_mat.RDS")                           ## ODLEGLOSCI OD ULICY dla sensora
+r = raster(data_dist[2])                                  ## ODLEGLOSCI OD ULICY raster
+#z <- as.matrix(z)
 
 stacja.loc <- data.frame(                                 ## DATAFRAME LOKALIZACJI
   m_id=stacja$m_id,
@@ -55,31 +44,27 @@ t <- sort(t, decreasing = F)
 
 xy <- data.frame(                                    ## DATAFRAME DLA JEDNEJ GODZINY
   m_id = unique(stacja$m_id),
-  m_t  = t[5], ## tu petla/funkcja
-  pm10 = NA,
-  pm25 = NA
+  m_t  = t[14]
 )
 xy <- merge(xy,stacja.loc,by="m_id")
 
 
 ### DLA KONKRETNEJ DATY ###
 
-xy.fill <- stacja[stacja$m_t %in% t[5],]
+xy.fill <- stacja[stacja$m_t %in% t[14],]
 
-fill.fun <- function ## uzupelnienie pm10,pm25
-
-lapply(xy, fill.fun)->xy  
-
-
+xy <- merge(xy, xy.fill[ , c("m_id", "pm10", "pm25")], by="m_id", all = TRUE)
+xy$pm10[is.na(xy$pm10)] <- mean(xy$pm10, na.rm=TRUE)      ##zapelnienie srednimi wartosciami
+xy$pm25[is.na(xy$pm25)] <- mean(xy$pm25, na.rm=TRUE)
 
 x = cbind(xy$lon,xy$lat)                                  ## WSPOLRZEDNE STACJI
 y10 = matrix(xy$pm10)                                     ## POZIOM PM10 (error qr.q2ty w/o matrix())
 y25 = matrix(xy$pm25)                                     ## POZIOM PM25
 
-smog10 <- Krig(x,y10,theta = 100,m = 1) #z nrow = xy nrow ok
-smog25 <- Krig()
+smog10 <- Krig(x,y10,Z=z,theta = 100) 
+smog25 <- Krig(x,y25,Z=z,theta = 100)
 
 #########################################
-plot(smog10)
 surface(smog10)
-plot(xy, add=T)
+surface(smog25)
+
