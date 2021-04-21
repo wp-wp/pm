@@ -1,7 +1,6 @@
 library(rgdal)
 library(fields)
 library(raster)
-library(rgeos)
 
 ##################################
 ###            DANE            ###
@@ -10,61 +9,111 @@ library(rgeos)
 city_list <- list.dirs(recursive = F, full.names = F)                                       ## LISTA FOLDEROW, FOLDER = MIASTO 
 data_dist <- list.files("raster",pattern= "*_primary.grd", recursive = T, full.names = T)   ## LISTA RASTROW (.GRD)
 data_pmloc <- list.files(pattern = "*_pmloc.RDS", recursive = T)                            ## DANE PM + LOKALIZACJA (.RDS)
+street_list <- list.files("WAW/ulice/",pattern= "*.shp",full.names = F)
+
 ## street_level <- LISTA PLIKOW .SHP Z ULICAMI
 
 #####################################
 ###            FUNKCJE            ###
 #####################################
 
-fKrig <- function(city,raster){
+
+getZ <- function(city,street){
+  points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))
+  lines <- readOGR(paste0(city,"/ulice/", street))
+  lines <- spTransform(lines, crs(points))
+  
+  dMat<- gDistance(lines,points, byid = T)
+  minDist<- as.matrix(apply(dMat,1,min)) ##min distance/sensor
+  
+  raster <- raster(nrow=nrow(points), ext = extent(points), crs = crs(points))
+  raster_points = as(raster,"SpatialPoints")
+  distance_m <- gDistance(lines, raster_points, byid=TRUE) ##distance matrix
+  sdf<- apply(distance_m,1,min)
+  raster[] = sdf 
+  names(raster) <- 'distance'
+  writeRaster(raster, file= paste0("raster/", city,"_",street,".grd"))
   
   
+  r <- raster(paste0("raster/", city,"_",street,".grd")) ##bez wczytania err(???)
+  r.pop = raster("GEOSTAT.tif")
+  r.proj = projectRaster(r.pop,r)
+  pop <- extract(r.proj, points)
+  
+  z=cbind(minDist, pop)
+  return(z)
+}
+
+simDF <- function(stacja){
+  stacja.loc <- data.frame(                                 ## DATAFRAME LOKALIZACJI
+    m_id=stacja$m_id,
+    lon= stacja$lon,
+    lat=stacja$lat
+  )
+  stacja.loc <- unique(stacja.loc)
+  return(stacja.loc)
+}
+
+fKrig10 <- function(t, Z){
+  stacja.dist <- cbind(stacja.loc,Z1=Z[,1], Z2= Z[,2])
+  xy <- stacja[stacja$m_t %in% t,]
+  xy <- merge(xy, stacja.dist[ , c("m_id", "Z1","Z2")], by="m_id")
+  x = cbind(xy$lon,xy$lat)                                  
+  y10 = matrix(xy$pm10)                                     
+  z = cbind(xy$Z1, xy$Z2)
+  z[is.na(z)] <- mean(xy$Z2,na.rm=TRUE)                 ##populacja ma 2 wartości NA - zapełniam je średnią
+  smog10 <- Krig(x,y10,Z=z,theta = 50) 
+  return(smog10)
+}
+fKrig25 <- function(t, z.all){
+  stacja.dist <- cbind(stacja.loc,Z1=z.all[,1], Z2= z.all[,2])
+  xy <- stacja[stacja$m_t %in% t,]
+  xy <- merge(xy, stacja.dist[ , c("m_id", "Z1","Z2")], by="m_id")
+  x = cbind(xy$lon,xy$lat)                                  
+  y25 = matrix(xy$pm25)
+  z = cbind(xy$Z1, xy$Z2)
+  z[is.na(z)] <- mean(xy$Z2,na.rm=TRUE)                 ##populacja ma 2 wartości NA - zapełniam je średnią
+  smog10 <- Krig(x,y10,Z=z,theta = 50) 
+  return(smog10)
 }
 
 ########################################
-###            OBLICZENIA            ### TEST DLA WARSZAWY PRIMARY ROADS
+###            OBLICZENIA            ### 
 ########################################
 
-stacja <- readRDS(data_pmloc[2])                          ## DANE
-z = readRDS("WAW/dist_mat.RDS")                           ## ODLEGLOSCI OD ULICY dla sensora
-r = raster(data_dist[2])                                  ## ODLEGLOSCI OD ULICY raster
-#z <- as.matrix(z)
-
-stacja.loc <- data.frame(                                 ## DATAFRAME LOKALIZACJI
-  m_id=stacja$m_id,
-  lon= stacja$lon,
-  lat=stacja$lat
-) 
-
-stacja.loc <- unique(stacja.loc) 
-
-t = unique(stacja$m_t)                                    ## CZAS
-t <- sort(t, decreasing = F) 
-
-
-xy <- data.frame(                                    ## DATAFRAME DLA JEDNEJ GODZINY
-  m_id = unique(stacja$m_id),
-  m_t  = t[14]
-)
-xy <- merge(xy,stacja.loc,by="m_id")
-
-
-### DLA KONKRETNEJ DATY ###
-
-xy.fill <- stacja[stacja$m_t %in% t[14],]
-
-xy <- merge(xy, xy.fill[ , c("m_id", "pm10", "pm25")], by="m_id", all = TRUE)
-xy$pm10[is.na(xy$pm10)] <- mean(xy$pm10, na.rm=TRUE)      ##zapelnienie srednimi wartosciami
-xy$pm25[is.na(xy$pm25)] <- mean(xy$pm25, na.rm=TRUE)
-
-x = cbind(xy$lon,xy$lat)                                  ## WSPOLRZEDNE STACJI
-y10 = matrix(xy$pm10)                                     ## POZIOM PM10 (error qr.q2ty w/o matrix())
-y25 = matrix(xy$pm25)                                     ## POZIOM PM25
-
-smog10 <- Krig(x,y10,Z=z,theta = 100) 
-smog25 <- Krig(x,y25,Z=z,theta = 100)
-
-#########################################
+#########################################TEST FUNKCJI
+city_list<-"WAW"
+street_list<-"primary.shp"
+for(city in city_list){
+  if (dir.exists(file.path(city, "pliki"))){
+    stacja <- readRDS(paste0(city_list[1],"/",city_list[1],"_pmloc.RDS"))                          
+    stacja.loc <- simDF(stacja)
+    t.all = unique(stacja$m_t)                                   
+    t.all <- sort(t.all, decreasing = F) 
+    for (street in street_list) {
+      Z = getZ(city_list[1],street_list[1])
+      smog10_list <- vector("list", length(t.all))
+      stacja.dist <- cbind(stacja.loc,Z1=Z[,1], Z2= Z[,2])
+      for (t in 1:length(t.all)) {
+          xy <- stacja[stacja$m_t %in% t.all[t],]
+          xy <- merge(xy, stacja.dist[ , c("m_id", "Z1","Z2")], by="m_id")
+          if (nrow(xy)>6){
+            x = cbind(xy$lon,xy$lat)                                  
+            y10 = matrix(xy$pm10)                                     
+            z = cbind(xy$Z1, xy$Z2)
+            z[is.na(z)] <- mean(xy$Z2,na.rm=TRUE)                 ##populacja ma 2 wartości NA - zapełniam je średnią
+            try(smog10 <- Krig(x,y10,Z=z,theta = 50)) 
+            if (!inherits(smog10, "try-error")){
+              smog10_list[[t]]<-smog10
+            } else {
+              smog10_list[[t]]<-"Regression matrix for fixed part of model is colinear"
+            }
+          }else{
+            smog10_list[[t]]<-"liczba pomiarów <7"
+            }
+      }
+    }
+  }
+}
 surface(smog10)
-surface(smog25)
-
+surface(smog10_list[[1]])
