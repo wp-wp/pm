@@ -37,5 +37,9 @@ sdf_type<- function(city){
   sdf<- apply(distance_m,1,min)
   raster[] = sdf  ##or raster[]=apply(distance_m,1,min)
   names(raster) <- 'distance'
-  writeRaster(raster, file= paste0("raster/", city,"_raster_primary.grd"))
+  writeRaster(raster, file= paste0("raster/", city,"_raster_primary2.grd"))
+  return(raster)
 }
+
+sdf_type(city_list[5])
+
