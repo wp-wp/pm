@@ -172,7 +172,41 @@ krig10 <- function(t,Z){
   return(result)
   }
 
+krig.inside.condition <- function(x,y10,z){ #działa
+  try(smog10 <- Krig(x,y10,Z=z,theta = 50)) 
+  if (!inherits(smog10, "try-error")){
+    result<-smog10
+  } else {
+    result<-"Regression matrix for fixed part of model is colinear"
+  }
+  return(result)
+}
 
+krig.outside.loop <- function(city,street,t){ #działa
+  points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))
+  r <- raster(paste0("raster/", city,"_",street,".grd")) 
+  dist <- extract(r,points) #get min dist
+  r.pop = raster("GEOSTAT.tif")
+  r.proj = projectRaster(r.pop,r)
+  pop <- extract(r.proj, points) #get population
+  
+  z=cbind(Z1=dist, Z2=pop)
+  
+  stacja.dist <- cbind(stacja.loc,Z1=dist, Z2=pop)
+  xy <- stacja[stacja$m_t %in% t,]
+  xy <- merge(xy, stacja.dist[ , c("m_id", "Z1","Z2")], by="m_id")
+  
+  if (nrow(xy)>6){
+    x = cbind(xy$lon,xy$lat)                                  
+    y10 = matrix(xy$pm10)                                     
+    z = cbind(xy$Z1, xy$Z2)
+    z[is.na(z)] <- mean(xy$Z2,na.rm=TRUE)                 ##populacja ma 2 wartości NA - zapełniam je średnią
+    result<- krig.inside.condition(x,y10,z)
+  }else{
+    result<-"liczba pomiarów <7"
+  }
+  return(result)
+}
 
 
 for (city in city_list) {
@@ -186,3 +220,7 @@ for (city in city_list) {
   }
   }
 }
+
+t.test <- t[14:16]
+street.test <- c("primary.shp","secondary.shp")
+krig.outside.loop(city,street,t[5]) -> test
