@@ -29,7 +29,7 @@ for(city in city_list){
 sdf_type<- function(city){
   points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))
   #lines <- readOGR(paste0(city,"/ulice_", city,"/primary.shp"))
-  lines <- readOGR(paste0("/home/weronika/Desktop/test/",city,"/ulice_", city, "/primary.shp"))
+  lines <- readOGR(paste0("/home/weronika/Desktop/test/",city,"/ulice_", city, "/secondary.shp"))
   lines <- spTransform(lines, crs(points))
   raster <- raster(nrow=nrow(points), ext = extent(points), crs = crs(points))
   raster_points = as(raster,"SpatialPoints")
@@ -37,7 +37,7 @@ sdf_type<- function(city){
   sdf<- apply(distance_m,1,min)
   raster[] = sdf  ##or raster[]=apply(distance_m,1,min)
   names(raster) <- 'distance'
-  writeRaster(raster, file= paste0("raster/", city,"_raster_primary2.grd"))
+  writeRaster(raster, file= paste0("raster/", city,"_secondary.shp.grd"))
   return(raster)
 }
 
