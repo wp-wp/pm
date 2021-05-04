@@ -30,7 +30,7 @@ getT <- function(stacja){
   return(t.all)
 }
 
-krig.inside.condition <- function(x,y10,z){ #działa
+krig.inside.condition <- function(x,y10,z){                ## warunek na error
   try(smog10 <- Krig(x,y10,Z=z,theta = 50)) 
   if (!inherits(smog10, "try-error")){
     result<-smog10
@@ -48,56 +48,49 @@ krig.outside.loop <- function(city,street,t){ #działa
   r.proj = projectRaster(r.pop,r)
   pop <- extract(r.proj, points) #get population
   
+  stacja <- readRDS(paste0(city,"/",city,"_pmloc.RDS")) 
+  stacja.loc <- getDF(stacja)
+  
   z=cbind(Z1=dist, Z2=pop)
   
   stacja.dist <- cbind(stacja.loc,Z1=dist, Z2=pop)
   xy <- stacja[stacja$m_t %in% t,]
   xy <- merge(xy, stacja.dist[ , c("m_id", "Z1","Z2")], by="m_id")
   
-  if (nrow(xy)>6){
+  if (nrow(xy)>6){                                          ##warunek za zbyt mala liczbe pomiarow (mniej niz 7 = nie dziala Krig)
     x = cbind(xy$lon,xy$lat)                                  
     y10 = matrix(xy$pm10)                                     
     z = cbind(xy$Z1, xy$Z2)
-    z[is.na(z)] <- mean(xy$Z2,na.rm=TRUE)                 ##populacja ma 2 wartości NA - zapełniam je średnią
+    z[is.na(z)] <- mean(xy$Z2,na.rm=T)                 ##populacja ma 2 wartości NA - zapełniam je średnią
     result<- krig.inside.condition(x,y10,z)
   }else{
-    result<-"liczba pomiarów <7"
+    result<-"liczba pomiarów jest zbyt mała (<7)"
   }
   return(result)
 }
 
-street.loop <- function(street.level){ 
-  smog10.street<- mapply(krig.outside.loop, t.test, street=street.level, city=city)#######
-  return(smog10.street)
+street.loop <- function(city,street){
+  stacja <- readRDS(paste0(city,"/",city,"_pmloc.RDS")) ## ponowne ladowanie danych aby wyciagnąc t
+  t = getT(stacja) #t.test
+  smog.list <- lapply(t, krig.outside.loop, city=city, street=street)
+  saveRDS(smog.list,file=paste0(city,"/",city,"_krig.RDS"))
+  return(smog.list)
 }
 
+city.loop <- function(city){
+  if (dir.exists(file.path(city, "pliki"))){ 
+    lapply(street.test,street.loop, city=city)->street.krig
+    names(street.krig)<-street.test
+    return(street.krig)
+  }
+}
+
+street.test = c("primary.shp","secondary.shp")
 ########################################
 ###            OBLICZENIA            ### 
 ########################################
 
-city = "KR"
-city.list <- c("WAW","KR")
-street.test <- c("primary.shp")
+lapply(city.list[1],city.loop) -> krig.all   ##zapisuje bezposrednio do plikow dla miast
+names(krig.all) <- city.list[1] 
+##city.list do edytowania
 
-##dziala
-for (city in city.list) {
-  if (dir.exists(file.path(city, "pliki"))){ 
-    stacja <- readRDS(paste0(city,"/",city,"_pmloc.RDS")) 
-    stacja.loc <- getDF(stacja)
-    t = getT(stacja)
-    t.test <- t[14:18]
-    lapply(street.test,street.loop)->smog.test2 
-
-  }
-}
-
-city.loop <- function(city){
-  stacja <- readRDS(paste0(city,"/",city,"_pmloc.RDS")) 
-  stacja.loc <- getDF(stacja)
-  t = getT(stacja)
-  smog.list <- lapply(street.test,street.loop)###
-  saveRDS(smog.list,file=paste0(city,"/",city,"_krig.RDS"))
-}
-
-city.loop(city)->testing.fun
-lapply(city.list,city.loop)->test.loop
