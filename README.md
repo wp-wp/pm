@@ -13,3 +13,6 @@ tertiary_link
 
 ####
 ! pliki *_street.shp zostały skompresowane w pliki .zip 
+
+! pliki z nowyi ulicami (linki do dysku google): 
+(do edycji)
