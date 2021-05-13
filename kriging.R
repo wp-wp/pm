@@ -1,16 +1,12 @@
+library(parallel)
 library(rgdal)
 library(fields)
 library(raster)
 
-##################################
-###            DANE            ###
-##################################
-
 city_list <- list.dirs(recursive = F, full.names = F)                                       ## LISTA FOLDEROW, FOLDER = MIASTO 
 data_pmloc <- list.files(pattern = "*_pmloc.RDS", recursive = T)                            ## DANE PM + LOKALIZACJA (.RDS)
 street_list <- list.files("WAW/ulice/",pattern= "*.shp",full.names = F)
-
-
+city.list<- c("WAW","KR")
 #####################################
 ###            FUNKCJE            ###
 #####################################
@@ -73,36 +69,26 @@ krig.outside.loop <- function(city,street,t){ #działa
 street.loop <- function(city,street){
   stacja <- readRDS(paste0(city,"/",city,"_pmloc.RDS")) ## ponowne ladowanie danych aby wyciagnąc t
   t = getT(stacja) #t.test
-  t = t[14:20]
-  smog.list <- lapply(t, krig.outside.loop, city=city, street=street)
-  saveRDS(smog.list,file=paste0(city,"/",city,"_krig2.RDS"))
-  return(smog.list)
+  smog.list <- mclapply(t, krig.outside.loop, city=city, street=street,mc.cores=90)
+  
+  saveRDS(smog.list,file=paste0(city,"/",city,"_kriging_",street,".RDS"))
+  #return(paste0("krig policzony dla ", street, city)
 }
 
 city.loop <- function(city){
   if (dir.exists(file.path(city, "pliki"))){ 
-    lapply(str,street.loop, city=city)->street.krig
+    lapply(street_list,street.loop, city=city)->street.krig
     #names(street.krig)<-street.test
-    return(street.krig)
+    #return(street.krig)
   }
 }
 
-street.test = c("primary.shp","secondary.shp")
 ########################################
 ###            OBLICZENIA            ### 
 ########################################
+ptm <- proc.time()
+lapply(city_list,city.loop) -> krig.all   ##zapisuje bezposrednio do plikow dla miast
+#mclapply(city_list,city.loop, mc.cores = 96) #wersja na epyc
+proc.time() - ptm
 
-lapply("WAW",city.loop) -> krig.all   ##zapisuje bezposrednio do plikow dla miast
-names(krig.all) <- city.list[1] 
-##city.list do edytowania
 
-str <- "primary.shp"
-
-city.loop("WAW")->loop.Krig
-city="WAW"
-
-###list loc/time
-stacja.list <- data.frame(m_id=stacja$m_id,
-                          m_t=stacja$m_t,
-                          lon=stacja$lon,
-                          lat=stacja$lat)
