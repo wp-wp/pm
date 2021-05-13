@@ -26,10 +26,10 @@ for(city in city_list){
 ## sdf dla 1 ulicy (primary) test (pliki w folderze test)
 ## wektor z nazwami ulic?
 
-sdf_type<- function(city){
+sdf_type<- function(city,street){
   points <- readOGR(paste0(city,"/pliki/", city,"_data.shp"))
   #lines <- readOGR(paste0(city,"/ulice_", city,"/primary.shp"))
-  lines <- readOGR(paste0("/home/weronika/Desktop/test/",city,"/ulice_", city, "/secondary.shp"))
+  lines <- readOGR(paste0(city,"/ulice/", street))
   lines <- spTransform(lines, crs(points))
   raster <- raster(nrow=nrow(points), ext = extent(points), crs = crs(points))
   raster_points = as(raster,"SpatialPoints")
@@ -37,9 +37,12 @@ sdf_type<- function(city){
   sdf<- apply(distance_m,1,min)
   raster[] = sdf  ##or raster[]=apply(distance_m,1,min)
   names(raster) <- 'distance'
-  writeRaster(raster, file= paste0("raster/", city,"_secondary.shp.grd"))
+  writeRaster(raster, file= paste0("raster/", city,"_",street))
   return(raster)
 }
 
 sdf_type(city_list[5])
 
+street_list <- list.files("WAW/ulice/",pattern= "*.shp",full.names = F)
+
+lapply(street_list, sdf_type, city="WAW")

@@ -10,6 +10,7 @@ city_list <- list.dirs(recursive = F, full.names = F)                           
 data_pmloc <- list.files(pattern = "*_pmloc.RDS", recursive = T)                            ## DANE PM + LOKALIZACJA (.RDS)
 street_list <- list.files("WAW/ulice/",pattern= "*.shp",full.names = F)
 
+
 #####################################
 ###            FUNKCJE            ###
 #####################################
@@ -72,15 +73,16 @@ krig.outside.loop <- function(city,street,t){ #działa
 street.loop <- function(city,street){
   stacja <- readRDS(paste0(city,"/",city,"_pmloc.RDS")) ## ponowne ladowanie danych aby wyciagnąc t
   t = getT(stacja) #t.test
+  t = t[14:20]
   smog.list <- lapply(t, krig.outside.loop, city=city, street=street)
-  saveRDS(smog.list,file=paste0(city,"/",city,"_krig.RDS"))
+  saveRDS(smog.list,file=paste0(city,"/",city,"_krig2.RDS"))
   return(smog.list)
 }
 
 city.loop <- function(city){
   if (dir.exists(file.path(city, "pliki"))){ 
-    lapply(street.test,street.loop, city=city)->street.krig
-    names(street.krig)<-street.test
+    lapply(str,street.loop, city=city)->street.krig
+    #names(street.krig)<-street.test
     return(street.krig)
   }
 }
@@ -90,7 +92,17 @@ street.test = c("primary.shp","secondary.shp")
 ###            OBLICZENIA            ### 
 ########################################
 
-lapply(city.list[1],city.loop) -> krig.all   ##zapisuje bezposrednio do plikow dla miast
+lapply("WAW",city.loop) -> krig.all   ##zapisuje bezposrednio do plikow dla miast
 names(krig.all) <- city.list[1] 
 ##city.list do edytowania
 
+str <- "primary.shp"
+
+city.loop("WAW")->loop.Krig
+city="WAW"
+
+###list loc/time
+stacja.list <- data.frame(m_id=stacja$m_id,
+                          m_t=stacja$m_t,
+                          lon=stacja$lon,
+                          lat=stacja$lat)
